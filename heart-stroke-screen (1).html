@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stroke Screen">
+<meta name="theme-color" content="#6B4C93">
+<title>HEART Post-Stroke Screen</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%;width:100%;overflow-x:hidden}
+body{font-family:-apple-system,"SF Pro Display",system-ui,sans-serif;background:#F0F4F7;color:#1A2332;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;touch-action:manipulation;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+input,button,textarea{font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+canvas{touch-action:none}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.10/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useRef,useCallback,useEffect}=React;
+const P="#6B4C93";
+const S={
+  hdr:{background:P,color:"#fff",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 8px rgba(107,76,147,0.15)",position:"sticky",top:0,zIndex:10},
+  main:{flex:1,maxWidth:"720px",width:"100%",margin:"0 auto",padding:"24px"},
+  card:{background:"#fff",borderRadius:"16px",padding:"28px",boxShadow:"0 1px 4px rgba(0,0,0,.06)",marginBottom:"16px"},
+  lbl:{fontSize:"12px",fontWeight:700,textTransform:"uppercase",letterSpacing:"1.5px",color:P,marginBottom:"8px"},
+  ttl:{fontSize:"26px",fontWeight:700,letterSpacing:"-0.5px",marginBottom:"8px"},
+  desc:{fontSize:"15px",lineHeight:1.6,color:"#5A6B7D",marginBottom:"24px"},
+  note:{background:"#FFF8E1",border:"1px solid #FFE082",borderRadius:"10px",padding:"14px 18px",fontSize:"14px",lineHeight:1.5,color:"#5D4037",marginBottom:"20px"},
+  inp:{width:"100%",padding:"16px",border:"2px solid #E0E7ED",borderRadius:"10px",fontSize:"16px",outline:"none",boxSizing:"border-box",WebkitAppearance:"none"},
+  iR:{marginBottom:"16px"},iL:{fontSize:"13px",fontWeight:600,color:"#5A6B7D",marginBottom:"6px",display:"block"},
+  bp:{background:P,color:"#fff",border:"none",borderRadius:"12px",padding:"18px 32px",fontSize:"17px",fontWeight:600,cursor:"pointer",width:"100%",minHeight:"54px"},
+  bs:{background:"transparent",color:P,border:`2px solid ${P}`,borderRadius:"12px",padding:"16px 24px",fontSize:"16px",fontWeight:600,cursor:"pointer",minHeight:"54px"},
+  tr:{display:"flex",gap:"10px",marginBottom:"12px"},
+  tb:a=>({flex:1,padding:"16px",border:`2px solid ${a?P:"#E0E7ED"}`,borderRadius:"10px",background:a?"#F3EDF8":"#fff",color:a?P:"#5A6B7D",fontSize:"16px",fontWeight:600,cursor:"pointer",textAlign:"center",minHeight:"52px"}),
+  sc:c=>({display:"inline-block",padding:"4px 12px",borderRadius:"20px",fontSize:"13px",fontWeight:700,background:c==="g"?"#E8F5E9":c==="y"?"#FFF8E1":"#FFEBEE",color:c==="g"?"#2E7D32":c==="y"?"#F57F17":"#C62828"}),
+  dr:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 0",borderBottom:"1px solid #F0F4F7"},
+  ft:{padding:"16px 24px",display:"flex",gap:"12px",justifyContent:"space-between",maxWidth:"720px",width:"100%",margin:"0 auto",boxSizing:"border-box",paddingBottom:"calc(16px + env(safe-area-inset-bottom))"},
+  ptCard:{background:"#fff",borderRadius:"16px",padding:"48px 28px",boxShadow:"0 1px 4px rgba(0,0,0,.06)",marginBottom:"16px",textAlign:"center"},
+  ptText:{fontSize:"20px",fontWeight:500,color:"#1A2332",lineHeight:1.6},
+  badge:{background:"#F3EDF8",border:`1px solid #D4C4E8`,borderRadius:"8px",padding:"8px 14px",fontSize:"12px",fontWeight:700,textTransform:"uppercase",letterSpacing:"1px",color:P,display:"inline-block",marginBottom:"16px"},
+};
+
+function Toggle({value,onChange,labels}){return<div style={S.tr}><button style={S.tb(value===1)} onClick={()=>onChange(1)}>{labels?.[0]||"Correct"}</button><button style={S.tb(value===0)} onClick={()=>onChange(0)}>{labels?.[1]||"Incorrect"}</button></div>;}
+
+function DrawCanvas({width=360,height=360}){
+  const ref=useRef(null),dr=useRef(false),last=useRef(null),[mode,setMode]=useState("draw");
+  const pos=e=>{const r=ref.current.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(width/r.width),y:(t.clientY-r.top)*(height/r.height)};};
+  const start=e=>{e.preventDefault();dr.current=true;last.current=pos(e);};
+  const move=e=>{if(!dr.current)return;e.preventDefault();const ctx=ref.current.getContext("2d"),p=pos(e);ctx.beginPath();ctx.moveTo(last.current.x,last.current.y);ctx.lineTo(p.x,p.y);if(mode==="erase"){ctx.globalCompositeOperation="destination-out";ctx.lineWidth=28;}else{ctx.globalCompositeOperation="source-over";ctx.strokeStyle="#1A2332";ctx.lineWidth=3;}ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();ctx.globalCompositeOperation="source-over";last.current=p;};
+  const end=()=>{dr.current=false;last.current=null;};
+  return<div><div style={{display:"flex",gap:"8px",marginBottom:"10px"}}><button onClick={()=>setMode("draw")} style={{...S.tb(mode==="draw"),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>✏️ Draw</button><button onClick={()=>setMode("erase")} style={{...S.tb(mode==="erase"),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>🧹 Erase</button></div>
+  <canvas ref={ref} width={width} height={height} style={{width:"100%",maxWidth:width+"px",aspectRatio:`${width}/${height}`,borderRadius:"12px",border:`2px solid ${mode==="erase"?"#FF9800":"#E0E7ED"}`,background:"#fff",display:"block",margin:"0 auto",touchAction:"none"}} onTouchStart={start} onTouchMove={move} onTouchEnd={end} onTouchCancel={end} onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}/>
+  <button onClick={()=>ref.current.getContext("2d").clearRect(0,0,width,height)} style={{...S.bs,width:"100%",marginTop:"10px",padding:"10px",minHeight:"44px",fontSize:"14px"}}>Clear All</button></div>;
+}
+
+function LineBisection({onScore}){
+  const LENS=[85,60,95];const[taps,setTaps]=useState([null,null,null]);const refs=[useRef(null),useRef(null),useRef(null)];
+  const tap=(i,e)=>{const r=refs[i].current.getBoundingClientRect(),t=e.touches?e.touches[0]:e,pct=(t.clientX-r.left)/r.width;const n=[...taps];n[i]=pct;setTaps(n);
+    if(n.filter(t=>t!==null).length===3){const dv=n.map(t=>Math.abs(t-0.5)),mx=Math.max(...dv),same=n.every(t=>t>0.5)||n.every(t=>t<0.5),avg=dv.reduce((a,b)=>a+b,0)/3;let s=2;if(mx>0.15||(same&&avg>0.08))s=0;else if(mx>0.08)s=1;onScore(s);}};
+  return<div>{LENS.map((len,i)=><div key={i} style={{marginBottom:"20px"}}><div style={{fontSize:"13px",color:"#5A6B7D",marginBottom:"6px"}}>Line {i+1}</div>
+    <div ref={refs[i]} style={{position:"relative",height:"56px",background:"#F8FAFB",borderRadius:"8px",border:"1px solid #E0E7ED",cursor:"crosshair",touchAction:"none"}} onTouchStart={e=>{e.preventDefault();tap(i,e);}} onClick={e=>tap(i,e)}>
+      <div style={{position:"absolute",top:"50%",left:`${(100-len)/2}%`,width:`${len}%`,height:"3px",background:"#1A2332",transform:"translateY(-50%)"}}/>
+      {taps[i]!==null&&<div style={{position:"absolute",top:"50%",left:`${taps[i]*100}%`,transform:"translate(-50%,-50%)",width:"22px",height:"22px",borderRadius:"50%",background:"#E53935",border:"3px solid #fff",boxShadow:"0 1px 4px rgba(0,0,0,.2)"}}/>}
+    </div></div>)}
+    {taps.every(t=>t!==null)&&<div style={{fontSize:"13px",color:"#5A6B7D",textAlign:"center"}}>All marked. Tap any line to re-mark.</div>}
+  </div>;
+}
+
+function ReactionTest({onComplete}){
+  const[phase,setPhase]=useState("ready"),[times,setTimes]=useState([]),[early,setEarly]=useState(0),[trial,setTrial]=useState(0),[st,setSt]=useState(null);
+  const tr=useRef(null),er=useRef(null);const N=5;
+  const go=useCallback(()=>{setPhase("wait");tr.current=setTimeout(()=>{setPhase("tap");setSt(Date.now());},1500+Math.random()*3000);},[]);
+  const tap=useCallback(()=>{
+    if(phase==="wait"){clearTimeout(tr.current);setEarly(p=>p+1);const nx=trial+1;setTrial(nx);
+      if(nx>=N){const avg=times.length>0?Math.round(times.reduce((a,b)=>a+b,0)/times.length):9999;let pts=0;if(avg<400)pts=3;else if(avg<600)pts=2;else if(avg<900)pts=1;onComplete(pts,times,early+1);setPhase("done");}
+      else{setPhase("early_pause");er.current=setTimeout(()=>go(),2000);}return;}
+    if(phase==="tap"){const rt=Date.now()-st,nt=[...times,rt];setTimes(nt);const nx=trial+1;setTrial(nx);
+      if(nx>=N){const avg=Math.round(nt.reduce((a,b)=>a+b,0)/nt.length);let pts=0;if(avg<400)pts=3;else if(avg<600)pts=2;else if(avg<900)pts=1;onComplete(pts,nt,early);setPhase("done");}
+      else setPhase("result");}
+  },[phase,st,times,trial,early,go,onComplete]);
+  useEffect(()=>()=>{clearTimeout(tr.current);clearTimeout(er.current);},[]);
+  const bg=phase==="wait"?"#E53935":phase==="tap"?"#4CAF50":phase==="early_pause"?"#FF9800":"#F3EDF8";
+  const tc=(phase==="wait"||phase==="tap"||phase==="early_pause")?"#fff":"#1A2332";
+  return<div>
+    {phase==="ready"&&<button style={S.bp} onClick={go}>Start Reaction Time Test</button>}
+    {["wait","tap","early_pause"].includes(phase)&&<div style={{width:"100%",height:"320px",borderRadius:"16px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"24px",fontWeight:600,cursor:"pointer",flexDirection:"column",gap:"8px",background:bg,color:tc,userSelect:"none",touchAction:"manipulation"}}
+      onTouchStart={e=>{e.preventDefault();if(phase!=="early_pause")tap();}} onClick={()=>{if(phase!=="early_pause")tap();}}>
+      {phase==="wait"&&<span>Wait for green...</span>}{phase==="tap"&&<span>TAP NOW!</span>}
+      {phase==="early_pause"&&<><span style={{fontSize:"18px"}}>Too early!</span><span style={{fontSize:"15px",opacity:.9}}>Next trial starting...</span></>}
+      <span style={{fontSize:"13px",opacity:.7}}>Trial {Math.min(trial+1,N)} of {N}</span></div>}
+    {phase==="result"&&<div style={{textAlign:"center"}}><div style={{fontSize:"16px",color:"#5A6B7D",marginBottom:"4px"}}>Reaction Time</div><div style={{fontSize:"48px",fontWeight:700,color:P,marginBottom:"16px"}}>{times[times.length-1]} ms</div><div style={{fontSize:"14px",color:"#5A6B7D",marginBottom:"16px"}}>Trial {trial} of {N}{early>0?` (${early} early)`:""}</div><button style={S.bp} onClick={go}>Next Trial</button></div>}
+    {phase==="done"&&<div style={{textAlign:"center"}}><div style={{fontSize:"16px",color:"#5A6B7D",marginBottom:"4px"}}>Average Reaction Time</div><div style={{fontSize:"48px",fontWeight:700,color:P,marginBottom:"16px"}}>{times.length>0?Math.round(times.reduce((a,b)=>a+b,0)/times.length):"N/A"} ms</div>
+      <div style={{display:"flex",gap:"8px",justifyContent:"center",flexWrap:"wrap",marginBottom:"8px"}}>{times.map((t,i)=><span key={i} style={{padding:"4px 10px",borderRadius:"6px",background:"#F0F4F7",fontSize:"13px",fontWeight:600}}>{t}ms</span>)}</div>
+      {early>0&&<div style={{fontSize:"13px",color:"#FF9800",marginBottom:"8px"}}>{early} early tap{early>1?"s":""} (excluded)</div>}</div>}
+  </div>;
+}
+
+function Results({pid,clin,domains,calc,max,onRestart,onHome}){
+  const total=Object.keys(max).reduce((a,d)=>a+calc(d),0),mx=Object.values(max).reduce((a,b)=>a+b,0),pct=Math.round((total/mx)*100);
+  const lv=pct>=80?"Within normal limits":pct>=55?"Mild impairment":pct>=35?"Moderate impairment":"Severe impairment";
+  const lc=pct>=80?"#2E7D32":pct>=55?"#F57F17":pct>=35?"#E65100":"#C62828";
+  const gc=(s,m)=>{const p=s/m;return p>=.8?"g":p>=.5?"y":"r";};
+  const fl=Object.keys(max).filter(d=>calc(d)/max[d]<0.5);
+  return<><div style={S.card}><div style={S.lbl}>Post-Stroke Screen - Complete</div><div style={S.ttl}>Results Summary</div>
+  <div style={{display:"flex",justifyContent:"space-between",fontSize:"14px",color:"#5A6B7D",marginBottom:"20px",flexWrap:"wrap",gap:"8px"}}><span>Patient: {pid}</span><span>Clinician: {clin}</span><span>{new Date().toLocaleDateString()}</span></div>
+  <div style={{textAlign:"center",padding:"24px",background:"#F8FAFB",borderRadius:"12px",marginBottom:"24px"}}><div style={{fontSize:"56px",fontWeight:700,color:lc}}>{total}</div><div style={{fontSize:"16px",color:"#5A6B7D"}}>out of {mx}</div><div style={{marginTop:"8px",fontSize:"16px",fontWeight:600,color:lc}}>{lv}</div><div style={{marginTop:"4px",fontSize:"12px",color:"#90A4AE"}}>Screening tool only. Not diagnostic.</div></div>
+  {Object.keys(max).map(d=>{const s=calc(d),m=max[d],c=gc(s,m);return<div key={d} style={S.dr}><div style={{fontSize:"15px",fontWeight:600}}>{domains[d]}</div><div style={{display:"flex",alignItems:"center",gap:"12px"}}><div style={{width:"80px",height:"6px",borderRadius:"3px",background:"#E0E7ED",overflow:"hidden"}}><div style={{height:"100%",borderRadius:"3px",width:`${(s/m)*100}%`,background:c==="g"?"#4CAF50":c==="y"?"#FFB300":"#E53935"}}/></div><span style={S.sc(c)}>{s}/{m}</span></div></div>;})}
+  {fl.length>0&&<div style={{background:"#FFF3E0",border:"1px solid #FFE0B2",borderRadius:"10px",padding:"16px",marginTop:"16px"}}><div style={{fontSize:"14px",fontWeight:700,color:"#E65100",marginBottom:"6px"}}>Flagged Domains</div><div style={{fontSize:"14px",color:"#5D4037",lineHeight:1.6}}>{fl.map(d=>domains[d]).join(", ")}.</div></div>}
+  </div><div style={{display:"flex",gap:"12px",paddingBottom:"32px"}}><button style={S.bs} onClick={onHome}>Home</button><button style={{...S.bp,flex:1}} onClick={onRestart}>New Screening</button></div></>;
+}
+
+const STEPS=["orient_pt","orient_sc","bisect_pt","bisect_sc","naming_pt","naming_sc","lang_pt","lang_sc","fluency_pt","fluency_sc","figure_pt","figure_sc","speed_pt","speed_sc","handoff","results"];
+const DN={orient:"Orientation",bisect:"Line Bisection",naming:"Confrontation Naming",lang:"Language",fluency:"Verbal Fluency",figure:"Figure Copy",speed:"Processing Speed"};
+const MX={orient:4,bisect:2,naming:3,lang:2,fluency:2,figure:2,speed:3};
+
+function StrokeScreen({pid,clin,onHome}){
+  const[step,setStep]=useState(STEPS[0]);
+  const[sc,setSc]=useState({orient:[null,null,null],bisect:null,naming:[null,null,null],lang:[null,null],fluency:null,figure:null,speed:null});
+  const[speedData,setSpeedData]=useState({pts:null,times:[],early:0});
+  const idx=STEPS.indexOf(step);
+  const set=(k,v)=>setSc(p=>({...p,[k]:v}));
+  const setA=(k,i,v)=>setSc(p=>{const a=[...p[k]];a[i]=v;return{...p,[k]:a};});
+  const next=()=>{if(STEPS[idx+1]){setStep(STEPS[idx+1]);window.scrollTo(0,0);}};
+  const back=()=>{if(STEPS[idx-1]){setStep(STEPS[idx-1]);window.scrollTo(0,0);}};
+  const calc=d=>{
+    if(d==="orient"){const o=sc.orient;return(o[0]??0)+(o[1]===2?2:o[1]===1?1:0)+(o[2]??0);}
+    if(d==="bisect")return sc.bisect??0;if(d==="naming")return sc.naming.filter(v=>v===1).length;
+    if(d==="lang")return sc.lang.filter(v=>v===1).length;if(d==="fluency")return sc.fluency??0;
+    if(d==="figure")return sc.figure??0;if(d==="speed")return sc.speed??0;return 0;};
+  const isSc=step.endsWith("_sc");const dk=step.replace(/_pt|_sc/g,"");
+  const showFt=step!=="handoff"&&step!=="results";
+  return<div style={{display:"flex",flexDirection:"column",minHeight:"100vh"}}>
+    <div style={S.hdr}><div><div style={{fontSize:"20px",fontWeight:700}}>Post-Stroke Screen</div><div style={{fontSize:"13px",opacity:.85}}>{step==="handoff"?"Complete":step==="results"?"Results":isSc?"Clinician Scoring":DN[dk]||""}</div></div></div>
+    <div style={S.main}>
+
+      {step==="orient_pt"&&<div style={S.ptCard}><div style={S.ptText}>Your examiner will ask you a few questions.<br/>Please answer to the best of your ability.</div></div>}
+      {step==="orient_sc"&&<div style={S.card}><div style={S.badge}>Clinician Scoring - Orientation</div>
+        <div style={{marginBottom:"16px"}}><div style={{fontSize:"15px",fontWeight:600,marginBottom:"8px"}}>What month is it?</div><Toggle value={sc.orient[0]} onChange={v=>setA("orient",0,v)}/></div>
+        <div style={{marginBottom:"16px"}}><div style={{fontSize:"15px",fontWeight:600,marginBottom:"8px"}}>What is today's date?</div><div style={S.note}>2 = exact, 1 = within 3 days, 0 = all else</div><div style={S.tr}>{[0,1,2].map(v=><button key={v} style={S.tb(sc.orient[1]===v)} onClick={()=>setA("orient",1,v)}>{v===2?"Exact":v===1?"± 3 days":"Off"}</button>)}</div></div>
+        <div><div style={{fontSize:"15px",fontWeight:600,marginBottom:"8px"}}>What year is it?</div><Toggle value={sc.orient[2]} onChange={v=>setA("orient",2,v)}/></div></div>}
+
+      {step==="bisect_pt"&&<div style={S.card}><div style={S.lbl}>Line Bisection</div><div style={S.desc}>Tap the center of each line as accurately as you can.</div><LineBisection onScore={v=>set("bisect",v)}/></div>}
+      {step==="bisect_sc"&&<div style={S.card}><div style={S.badge}>Clinician Scoring - Line Bisection</div>
+        <div style={{fontSize:"15px",fontWeight:600,marginBottom:"16px"}}>Auto-score: {sc.bisect!==null?sc.bisect+"/2":"pending"}</div>
+        <div style={{background:"#F8FAFB",borderRadius:"10px",padding:"16px",marginBottom:"20px"}}>
+          <div style={{fontWeight:700,fontSize:"14px",marginBottom:"12px"}}>Scoring Examples:</div>
+          <div style={{marginBottom:"16px"}}>
+            <div style={{fontSize:"14px",fontWeight:600,color:"#2E7D32",marginBottom:"6px"}}>2/2 - Normal</div>
+            <svg viewBox="0 0 300 80" width="280" height="75" style={{display:"block"}}>
+              <line x1="30" y1="20" x2="270" y2="20" stroke="#1A2332" strokeWidth="2.5"/>
+              <circle cx="150" cy="20" r="5" fill="#4CAF50"/>
+              <line x1="60" y1="45" x2="220" y2="45" stroke="#1A2332" strokeWidth="2.5"/>
+              <circle cx="142" cy="45" r="5" fill="#4CAF50"/>
+              <line x1="20" y1="70" x2="280" y2="70" stroke="#1A2332" strokeWidth="2.5"/>
+              <circle cx="148" cy="70" r="5" fill="#4CAF50"/>
+              <text x="295" y="45" fontSize="11" fill="#5A6B7D" textAnchor="end">Marks at center</text>
+            </svg>
+          </div>
+          <div style={{marginBottom:"16px"}}>
+            <div style={{fontSize:"14px",fontWeight:600,color:"#F57F17",marginBottom:"6px"}}>1/2 - Mild Deviation</div>
+            <svg viewBox="0 0 300 80" width="280" height="75" style={{display:"block"}}>
+              <line x1="30" y1="20" x2="270" y2="20" stroke="#1A2332" strokeWidth="2.5"/>
+              <circle cx="165" cy="20" r="5" fill="#FFB300"/>
+              <line x1="60" y1="45" x2="220" y2="45" stroke="#1A2332" strokeWidth="2.5"/>
+              <circle cx="130" cy="45" r="5" fill="#FFB300"/>
+              <line x1="20" y1="70" x2="280" y2="70" stroke="#1A2332" strokeWidth="2.5"/>
+              <circle cx="155" cy="70" r="5" fill="#FFB300"/>
+              <text x="295" y="45" fontSize="11" fill="#5A6B7D" textAnchor="end">1-2 off, no pattern</text>
+            </svg>
+          </div>
+          <div>
+            <div style={{fontSize:"14px",fontWeight:600,color:"#C62828",marginBottom:"6px"}}>0/2 - Possible Neglect</div>
+            <svg viewBox="0 0 300 80" width="280" height="75" style={{display:"block"}}>
+              <line x1="30" y1="20" x2="270" y2="20" stroke="#1A2332" strokeWidth="2.5"/>
+              <circle cx="195" cy="20" r="5" fill="#E53935"/>
+              <line x1="60" y1="45" x2="220" y2="45" stroke="#1A2332" strokeWidth="2.5"/>
+              <circle cx="180" cy="45" r="5" fill="#E53935"/>
+              <line x1="20" y1="70" x2="280" y2="70" stroke="#1A2332" strokeWidth="2.5"/>
+              <circle cx="200" cy="70" r="5" fill="#E53935"/>
+              <text x="295" y="45" fontSize="11" fill="#5A6B7D" textAnchor="end">All shifted same side</text>
+            </svg>
+          </div>
+        </div>
+        <div style={S.tr}>{[0,1,2].map(v=><button key={v} style={S.tb(sc.bisect===v)} onClick={()=>set("bisect",v)}>{v===2?"2 - Normal":v===1?"1 - Mild":"0 - Neglect"}</button>)}</div></div>}
+
+      {step==="naming_pt"&&<div style={S.card}>
+        {[["🦒","Name this animal"],["🐪","Name this animal"],["🐘","Name this animal"]].map(([emoji,label],i)=>
+          <div key={i} style={{padding:"20px",background:"#F8FAFB",borderRadius:"12px",marginBottom:i<2?"16px":"0"}}><div style={{fontSize:"120px",textAlign:"center",lineHeight:1.1,padding:"12px 0"}}>{emoji}</div><div style={{textAlign:"center",fontSize:"14px",color:"#90A4AE",marginTop:"8px"}}>{label}</div></div>)}
+      </div>}
+      {step==="naming_sc"&&<div style={S.card}><div style={S.badge}>Clinician Scoring - Naming</div>
+        {[["🦒","Giraffe"],["🐪","Camel"],["🐘","Elephant"]].map(([emoji,name],i)=>
+          <div key={i} style={{marginBottom:i<2?"16px":"0"}}><div style={{fontSize:"15px",fontWeight:600,marginBottom:"8px"}}>{emoji} {name}</div><Toggle value={sc.naming[i]} onChange={v=>setA("naming",i,v)}/></div>)}
+      </div>}
+
+      {step==="lang_pt"&&<div style={S.ptCard}><div style={S.ptText}>Your examiner will ask you to do a couple of tasks.<br/>Please do your best.</div></div>}
+      {step==="lang_sc"&&<div style={S.card}><div style={S.badge}>Clinician Scoring - Language</div>
+        <div style={{marginBottom:"24px"}}><div style={{fontSize:"16px",fontWeight:600,marginBottom:"8px"}}>Sentence Repetition</div><div style={S.note}>Ask: "The cat always hid under the couch when dogs were in the room."</div><Toggle value={sc.lang[0]} onChange={v=>setA("lang",0,v)}/></div>
+        <div style={{borderTop:"1px solid #E0E7ED",paddingTop:"20px"}}><div style={{fontSize:"16px",fontWeight:600,marginBottom:"8px"}}>Two-Step Command</div><div style={S.note}>Say: "Point to the ceiling, then point to the door." Score 1 if both correct.</div><Toggle value={sc.lang[1]} onChange={v=>setA("lang",1,v)}/></div></div>}
+
+      {step==="fluency_pt"&&<div style={S.ptCard}><div style={S.ptText}>Name as many different animals as you can.<br/>Your examiner will tell you when to start and stop.</div></div>}
+      {step==="fluency_sc"&&<div style={S.card}><div style={S.badge}>Clinician Scoring - Verbal Fluency</div><div style={S.note}>Total unique animals in 60 seconds.</div><div style={S.tr}>{[0,1,2].map(v=><button key={v} style={S.tb(sc.fluency===v)} onClick={()=>set("fluency",v)}>{v===0?"≤ 9 (0)":v===1?"10-11 (1)":"12+ (2)"}</button>)}</div></div>}
+
+      {step==="figure_pt"&&<div style={S.card}><div style={S.lbl}>Figure Copy</div><div style={S.desc}>Copy the overlapping rectangles shown below as accurately as you can.</div>
+        <div style={{marginBottom:"16px"}}><svg viewBox="0 0 260 140" width="240" height="130" style={{display:"block",margin:"0 auto"}}><rect x="20" y="20" width="120" height="90" fill="none" stroke={P} strokeWidth="2.5" rx="2"/><rect x="80" y="40" width="120" height="90" fill="none" stroke={P} strokeWidth="2.5" rx="2"/></svg></div>
+        <DrawCanvas width={360} height={240}/></div>}
+      {step==="figure_sc"&&<div style={S.card}><div style={S.badge}>Clinician Scoring - Figure Copy</div><div style={S.note}>Score: 2 = both rectangles with correct overlap, 1 = recognizable attempt, 0 = unrecognizable.</div><div style={S.tr}>{[0,1,2].map(v=><button key={v} style={S.tb(sc.figure===v)} onClick={()=>set("figure",v)}>{v}/2</button>)}</div></div>}
+
+      {step==="speed_pt"&&<div style={S.card}><div style={S.lbl}>Processing Speed</div><div style={S.desc}>Tap the screen as fast as possible when it turns green. 5 trials.</div>
+        <ReactionTest onComplete={(pts,t,e)=>{set("speed",pts);setSpeedData({pts,times:t,early:e});}}/></div>}
+      {step==="speed_sc"&&<div style={S.card}><div style={S.badge}>Clinician Scoring - Processing Speed</div>
+        <div style={{fontSize:"15px",marginBottom:"12px"}}>Average: <strong>{speedData.times.length>0?Math.round(speedData.times.reduce((a,b)=>a+b,0)/speedData.times.length):"N/A"} ms</strong>{speedData.early>0?` (${speedData.early} early taps excluded)`:""}</div>
+        <div style={S.note}>Auto-scored. Override if needed. Under 400ms = 3, 400-599ms = 2, 600-899ms = 1, 900ms+ = 0.</div>
+        <div style={S.tr}>{[0,1,2,3].map(v=><button key={v} style={S.tb(sc.speed===v)} onClick={()=>set("speed",v)}>{v}/3</button>)}</div></div>}
+
+      {step==="handoff"&&<div style={{...S.card,textAlign:"center",padding:"48px 32px"}}><div style={{fontSize:"64px",marginBottom:"24px"}}>✅</div><div style={{fontSize:"26px",fontWeight:700,marginBottom:"16px"}}>Thank you for completing the screening.</div><div style={{fontSize:"18px",color:"#5A6B7D",lineHeight:1.6,maxWidth:"400px",margin:"0 auto 32px"}}>Please hand the device back to your examiner now.</div>
+        <button style={{...S.bp,maxWidth:"320px",margin:"0 auto"}} onClick={next}>Clinician: View Results</button></div>}
+
+      {step==="results"&&<Results pid={pid} clin={clin} domains={DN} calc={calc} max={MX}
+        onRestart={()=>{setStep(STEPS[0]);setSc({orient:[null,null,null],bisect:null,naming:[null,null,null],lang:[null,null],fluency:null,figure:null,speed:null});setSpeedData({pts:null,times:[],early:0});window.scrollTo(0,0);}} onHome={onHome}/>}
+    </div>
+    {showFt&&step!=="handoff"&&<div style={S.ft}><button style={S.bs} onClick={idx===0?onHome:back}>{idx===0?"Home":"Back"}</button><button style={{...S.bp,width:"auto",flex:1}} onClick={next}>Next</button></div>}
+  </div>;
+}
+
+function App(){
+  const[scr,setScr]=useState("setup"),[pid,setPid]=useState(""),[clin,setClin]=useState("");
+  if(scr==="test")return<StrokeScreen pid={pid} clin={clin} onHome={()=>{setScr("setup");setPid("");setClin("");window.scrollTo(0,0);}}/>;
+  const today=new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+  return<div style={{display:"flex",flexDirection:"column",minHeight:"100vh"}}><div style={S.hdr}><div><div style={{fontSize:"20px",fontWeight:700}}>Post-Stroke Screen</div><div style={{fontSize:"13px",opacity:.85}}>Stroke Cognitive Screen</div></div></div>
+  <div style={S.main}><div style={S.card}><div style={S.lbl}>Patient Setup</div><div style={S.ttl}>New Screening</div><div style={S.desc}>Post-stroke cognitive screening. Neglect, aphasia, visuospatial, processing speed. 7 domains, 18 points. ~5 min.</div>
+  <div style={S.iR}><label style={S.iL}>Date</label><div style={{...S.inp,background:"#F0F4F7",color:"#5A6B7D"}}>{today}</div></div>
+  <div style={S.iR}><label style={S.iL}>Patient ID or Initials</label><input style={S.inp} value={pid} onChange={e=>setPid(e.target.value)} placeholder="e.g. JD or 0042"/></div>
+  <div style={S.iR}><label style={S.iL}>Clinician / Student Name</label><input style={S.inp} value={clin} onChange={e=>setClin(e.target.value)} placeholder="Your name"/></div>
+  <button style={{...S.bp,marginTop:"12px",opacity:pid&&clin?1:.5}} disabled={!pid||!clin} onClick={()=>{setScr("test");window.scrollTo(0,0);}}>Begin Screening</button></div></div></div>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

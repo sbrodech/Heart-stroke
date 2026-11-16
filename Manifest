@@ -1,0 +1,25 @@
+{
+  "name": "HEART Post-Stroke Screen",
+  "short_name": "Stroke Screen",
+  "description": "Post-stroke cognitive screening tool for the HEART Pro Bono PT Clinic",
+  "start_url": "/Heart-stroke/",
+  "scope": "/Heart-stroke/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F0F4F7",
+  "theme_color": "#6B4C93",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

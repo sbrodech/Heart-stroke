@@ -1,4 +1,4 @@
-const CACHE_NAME = 'heart-stroke-v3';
+const CACHE_NAME = 'heart-stroke-v4';
 const ASSETS = [
   '/Heart-stroke/',
   '/Heart-stroke/index.html',

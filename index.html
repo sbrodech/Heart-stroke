@@ -262,6 +262,22 @@ function App(){
 }
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}</script>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    setInterval(()=>reg.update(),60000);
+    if(reg.waiting){location.reload();}
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      if(nw){nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed'&&navigator.serviceWorker.controller){location.reload();}
+      });}
+    });
+  }).catch(()=>{});
+  navigator.serviceWorker.addEventListener('message',e=>{
+    if(e.data&&e.data.type==='SW_UPDATED'){location.reload();}
+  });
+}
+</script>
 </body>
 </html>

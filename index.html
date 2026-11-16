@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Stroke Screen">
 <meta name="theme-color" content="#6B4C93">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>HEART Post-Stroke Screen</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -48,23 +50,24 @@ const S={
 
 function Toggle({value,onChange,labels}){return<div style={S.tr}><button style={S.tb(value===1)} onClick={()=>onChange(1)}>{labels?.[0]||"Correct"}</button><button style={S.tb(value===0)} onClick={()=>onChange(0)}>{labels?.[1]||"Incorrect"}</button></div>;}
 
-function DrawCanvas({width=360,height=360}){
+function DrawCanvas({width=360,height=360,pencilOnly=true}){
   const ref=useRef(null),dr=useRef(false),last=useRef(null),[mode,setMode]=useState("draw");
-  const pos=e=>{const r=ref.current.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(width/r.width),y:(t.clientY-r.top)*(height/r.height)};};
-  const start=e=>{e.preventDefault();dr.current=true;last.current=pos(e);};
-  const move=e=>{if(!dr.current)return;e.preventDefault();const ctx=ref.current.getContext("2d"),p=pos(e);ctx.beginPath();ctx.moveTo(last.current.x,last.current.y);ctx.lineTo(p.x,p.y);if(mode==="erase"){ctx.globalCompositeOperation="destination-out";ctx.lineWidth=28;}else{ctx.globalCompositeOperation="source-over";ctx.strokeStyle="#1A2332";ctx.lineWidth=3;}ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();ctx.globalCompositeOperation="source-over";last.current=p;};
-  const end=()=>{dr.current=false;last.current=null;};
+  const ok=e=>!pencilOnly||e.pointerType==="pen"||e.pointerType==="mouse";
+  const pos=e=>{const r=ref.current.getBoundingClientRect();return{x:(e.clientX-r.left)*(width/r.width),y:(e.clientY-r.top)*(height/r.height)};};
+  const start=e=>{if(!ok(e))return;e.preventDefault();ref.current.setPointerCapture(e.pointerId);dr.current=true;last.current=pos(e);};
+  const move=e=>{if(!dr.current||!ok(e))return;e.preventDefault();const ctx=ref.current.getContext("2d"),p=pos(e);ctx.beginPath();ctx.moveTo(last.current.x,last.current.y);ctx.lineTo(p.x,p.y);if(mode==="erase"){ctx.globalCompositeOperation="destination-out";ctx.lineWidth=28;}else{ctx.globalCompositeOperation="source-over";ctx.strokeStyle="#1A2332";ctx.lineWidth=3;}ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();ctx.globalCompositeOperation="source-over";last.current=p;};
+  const end=e=>{if(ok(e)){dr.current=false;last.current=null;}};
   return<div><div style={{display:"flex",gap:"8px",marginBottom:"10px"}}><button onClick={()=>setMode("draw")} style={{...S.tb(mode==="draw"),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>✏️ Draw</button><button onClick={()=>setMode("erase")} style={{...S.tb(mode==="erase"),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>🧹 Erase</button></div>
-  <canvas ref={ref} width={width} height={height} style={{width:"100%",maxWidth:width+"px",aspectRatio:`${width}/${height}`,borderRadius:"12px",border:`2px solid ${mode==="erase"?"#FF9800":"#E0E7ED"}`,background:"#fff",display:"block",margin:"0 auto",touchAction:"none"}} onTouchStart={start} onTouchMove={move} onTouchEnd={end} onTouchCancel={end} onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}/>
+  <canvas ref={ref} width={width} height={height} style={{width:"100%",maxWidth:width+"px",aspectRatio:`${width}/${height}`,borderRadius:"12px",border:`2px solid ${mode==="erase"?"#FF9800":"#E0E7ED"}`,background:"#fff",display:"block",margin:"0 auto",touchAction:"none"}} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end}/>
   <button onClick={()=>ref.current.getContext("2d").clearRect(0,0,width,height)} style={{...S.bs,width:"100%",marginTop:"10px",padding:"10px",minHeight:"44px",fontSize:"14px"}}>Clear All</button></div>;
 }
 
-function LineBisection({onScore}){
+function LineBisection({onScore,pencilOnly=true}){
   const LENS=[85,60,95];const[taps,setTaps]=useState([null,null,null]);const refs=[useRef(null),useRef(null),useRef(null)];
-  const tap=(i,e)=>{const r=refs[i].current.getBoundingClientRect(),t=e.touches?e.touches[0]:e,pct=(t.clientX-r.left)/r.width;const n=[...taps];n[i]=pct;setTaps(n);
+  const tap=(i,e)=>{if(pencilOnly&&e.pointerType&&e.pointerType!=="pen"&&e.pointerType!=="mouse")return;const r=refs[i].current.getBoundingClientRect(),pct=(e.clientX-r.left)/r.width;const n=[...taps];n[i]=pct;setTaps(n);
     if(n.filter(t=>t!==null).length===3){const dv=n.map(t=>Math.abs(t-0.5)),mx=Math.max(...dv),same=n.every(t=>t>0.5)||n.every(t=>t<0.5),avg=dv.reduce((a,b)=>a+b,0)/3;let s=2;if(mx>0.15||(same&&avg>0.08))s=0;else if(mx>0.08)s=1;onScore(s);}};
   return<div>{LENS.map((len,i)=><div key={i} style={{marginBottom:"20px"}}><div style={{fontSize:"13px",color:"#5A6B7D",marginBottom:"6px"}}>Line {i+1}</div>
-    <div ref={refs[i]} style={{position:"relative",height:"56px",background:"#F8FAFB",borderRadius:"8px",border:"1px solid #E0E7ED",cursor:"crosshair",touchAction:"none"}} onTouchStart={e=>{e.preventDefault();tap(i,e);}} onClick={e=>tap(i,e)}>
+    <div ref={refs[i]} style={{position:"relative",height:"56px",background:"#F8FAFB",borderRadius:"8px",border:"1px solid #E0E7ED",cursor:"crosshair",touchAction:"none"}} onPointerDown={e=>{e.preventDefault();tap(i,e);}}>
       <div style={{position:"absolute",top:"50%",left:`${(100-len)/2}%`,width:`${len}%`,height:"3px",background:"#1A2332",transform:"translateY(-50%)"}}/>
       {taps[i]!==null&&<div style={{position:"absolute",top:"50%",left:`${taps[i]*100}%`,transform:"translate(-50%,-50%)",width:"22px",height:"22px",borderRadius:"50%",background:"#E53935",border:"3px solid #fff",boxShadow:"0 1px 4px rgba(0,0,0,.2)"}}/>}
     </div></div>)}
@@ -119,7 +122,7 @@ const STEPS=["orient_pt","orient_sc","bisect_pt","bisect_sc","naming_pt","naming
 const DN={orient:"Orientation",bisect:"Line Bisection",naming:"Confrontation Naming",lang:"Language",fluency:"Verbal Fluency",figure:"Figure Copy",speed:"Processing Speed"};
 const MX={orient:4,bisect:2,naming:3,lang:2,fluency:2,figure:2,speed:3};
 
-function StrokeScreen({pid,clin,onHome}){
+function StrokeScreen({pid,clin,onHome,pencilOnly=true}){
   const[step,setStep]=useState(STEPS[0]);
   const[sc,setSc]=useState({orient:[null,null,null],bisect:null,naming:[null,null,null],lang:[null,null],fluency:null,figure:null,speed:null});
   const[speedData,setSpeedData]=useState({pts:null,times:[],early:0});
@@ -145,7 +148,7 @@ function StrokeScreen({pid,clin,onHome}){
         <div style={{marginBottom:"16px"}}><div style={{fontSize:"15px",fontWeight:600,marginBottom:"8px"}}>What is today's date?</div><div style={S.note}>2 = exact, 1 = within 3 days, 0 = all else</div><div style={S.tr}>{[0,1,2].map(v=><button key={v} style={S.tb(sc.orient[1]===v)} onClick={()=>setA("orient",1,v)}>{v===2?"Exact":v===1?"± 3 days":"Off"}</button>)}</div></div>
         <div><div style={{fontSize:"15px",fontWeight:600,marginBottom:"8px"}}>What year is it?</div><Toggle value={sc.orient[2]} onChange={v=>setA("orient",2,v)}/></div></div>}
 
-      {step==="bisect_pt"&&<div style={S.card}><div style={S.lbl}>Line Bisection</div><div style={S.desc}>Tap the center of each line as accurately as you can.</div><LineBisection onScore={v=>set("bisect",v)}/></div>}
+      {step==="bisect_pt"&&<div style={S.card}><div style={S.lbl}>Line Bisection</div><div style={S.desc}>Tap the center of each line as accurately as you can.</div><LineBisection onScore={v=>set("bisect",v)} pencilOnly={pencilOnly}/></div>}
       {step==="bisect_sc"&&<div style={S.card}><div style={S.badge}>Clinician Scoring - Line Bisection</div>
         <div style={{fontSize:"15px",fontWeight:600,marginBottom:"16px"}}>Auto-score: {sc.bisect!==null?sc.bisect+"/2":"pending"}</div>
         <div style={{background:"#F8FAFB",borderRadius:"10px",padding:"16px",marginBottom:"20px"}}>
@@ -208,7 +211,7 @@ function StrokeScreen({pid,clin,onHome}){
 
       {step==="figure_pt"&&<div style={S.card}><div style={S.lbl}>Figure Copy</div><div style={S.desc}>Copy the overlapping rectangles shown below as accurately as you can.</div>
         <div style={{marginBottom:"16px"}}><svg viewBox="0 0 260 140" width="240" height="130" style={{display:"block",margin:"0 auto"}}><rect x="20" y="20" width="120" height="90" fill="none" stroke={P} strokeWidth="2.5" rx="2"/><rect x="80" y="40" width="120" height="90" fill="none" stroke={P} strokeWidth="2.5" rx="2"/></svg></div>
-        <DrawCanvas width={360} height={240}/></div>}
+        <DrawCanvas width={360} height={240} pencilOnly={pencilOnly}/></div>}
       {step==="figure_sc"&&<div style={S.card}><div style={S.badge}>Clinician Scoring - Figure Copy</div><div style={S.note}>Score: 2 = both rectangles with correct overlap, 1 = recognizable attempt, 0 = unrecognizable.</div><div style={S.tr}>{[0,1,2].map(v=><button key={v} style={S.tb(sc.figure===v)} onClick={()=>set("figure",v)}>{v}/2</button>)}</div></div>}
 
       {step==="speed_pt"&&<div style={S.card}><div style={S.lbl}>Processing Speed</div><div style={S.desc}>Tap the screen as fast as possible when it turns green. 5 trials.</div>
@@ -229,7 +232,7 @@ function StrokeScreen({pid,clin,onHome}){
 }
 
 function App(){
-  const[scr,setScr]=useState("setup"),[pid,setPid]=useState(""),[clin,setClin]=useState("");
+  const[scr,setScr]=useState("setup"),[pid,setPid]=useState(""),[clin,setClin]=useState(""),[pencilOnly,setPencilOnly]=useState(true);
   if(scr==="ack")return<div style={{display:"flex",flexDirection:"column",minHeight:"100vh"}}><div style={{...S.hdr}}><div><div style={{fontSize:"20px",fontWeight:700}}>Post-Stroke Screen</div><div style={{fontSize:"13px",opacity:.85}}>Acknowledgements</div></div></div>
   <div style={S.main}><div style={S.card}>
     <div style={S.ttl}>Acknowledgements</div>
@@ -245,16 +248,18 @@ function App(){
     <button style={{...S.bp,marginTop:"20px"}} onClick={()=>setScr("setup")}>Back</button>
   </div></div></div>;
 
-  if(scr==="test")return<StrokeScreen pid={pid} clin={clin} onHome={()=>{setScr("setup");setPid("");setClin("");window.scrollTo(0,0);}}/>;
+  if(scr==="test")return<StrokeScreen pid={pid} clin={clin} pencilOnly={pencilOnly} onHome={()=>{setScr("setup");setPid("");setClin("");window.scrollTo(0,0);}}/>;
   const today=new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
   return<div style={{display:"flex",flexDirection:"column",minHeight:"100vh"}}><div style={S.hdr}><div><div style={{fontSize:"20px",fontWeight:700}}>Post-Stroke Screen</div><div style={{fontSize:"13px",opacity:.85}}>Stroke Cognitive Screen</div></div></div>
   <div style={S.main}><div style={S.card}><div style={S.lbl}>Patient Setup</div><div style={S.ttl}>New Screening</div><div style={S.desc}>Post-stroke cognitive screening. Neglect, aphasia, visuospatial, processing speed. 7 domains, 18 points. ~5 min.</div>
   <div style={S.iR}><label style={S.iL}>Date</label><div style={{...S.inp,background:"#F0F4F7",color:"#5A6B7D"}}>{today}</div></div>
   <div style={S.iR}><label style={S.iL}>Patient ID or Initials</label><input style={S.inp} value={pid} onChange={e=>setPid(e.target.value)} placeholder="e.g. JD or 0042"/></div>
   <div style={S.iR}><label style={S.iL}>Clinician / Student Name</label><input style={S.inp} value={clin} onChange={e=>setClin(e.target.value)} placeholder="Your name"/></div>
+  <div style={S.iR}><label style={S.iL}>Input Mode</label><div style={{display:"flex",gap:"8px"}}><button onClick={()=>setPencilOnly(true)} style={{...S.tb(pencilOnly),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>✏️ Apple Pencil Only</button><button onClick={()=>setPencilOnly(false)} style={{...S.tb(!pencilOnly),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>👆 Finger + Pencil</button></div><div style={{fontSize:"12px",color:"#90A4AE",marginTop:"4px"}}>Pencil Only mode prevents palm marks on drawing areas</div></div>
   <button style={{...S.bp,marginTop:"12px",opacity:pid&&clin?1:.5}} disabled={!pid||!clin} onClick={()=>{setScr("test");window.scrollTo(0,0);}}>Begin Screening</button><div style={{marginTop:"24px",textAlign:"center"}}><button onClick={()=>setScr("ack")} style={{background:"none",border:"none",color:"#90A4AE",fontSize:"13px",cursor:"pointer",textDecoration:"underline"}}>Acknowledgements</button></div></div></div></div>;
 }
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}</script>
 </body>
 </html>

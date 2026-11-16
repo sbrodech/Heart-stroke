@@ -1,4 +1,4 @@
-const CACHE_NAME = 'heart-stroke-v4';
+const CACHE_NAME = 'heart-stroke-v5';
 const ASSETS = [
   '/Heart-stroke/',
   '/Heart-stroke/index.html',
@@ -15,15 +15,34 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll().then(clients => clients.forEach(c => c.postMessage({type: 'SW_UPDATED'}))))
+  );
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-    if (resp.ok && e.request.method === 'GET') {
-      const clone = resp.clone();
-      caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-    }
-    return resp;
-  }).catch(() => caches.match('/Heart-stroke/index.html'))));
+  const url = new URL(e.request.url);
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/')) {
+    e.respondWith(
+      fetch(e.request).then(resp => {
+        if (resp.ok) {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => caches.match(e.request).then(r => r || caches.match('/Heart-stroke/index.html')))
+    );
+    return;
+  }
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
+      if (resp.ok && e.request.method === 'GET') {
+        const clone = resp.clone();
+        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+      }
+      return resp;
+    }).catch(() => caches.match('/Heart-stroke/index.html')))
+  );
 });

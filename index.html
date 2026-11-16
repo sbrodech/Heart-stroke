@@ -55,11 +55,12 @@ function DrawCanvas({width=360,height=360,pencilOnly=true}){
   const ref=useRef(null),dr=useRef(false),last=useRef(null),[mode,setMode]=useState("draw");
   const ok=e=>!pencilOnly||e.pointerType==="pen"||e.pointerType==="mouse";
   const pos=e=>{const r=ref.current.getBoundingClientRect();return{x:(e.clientX-r.left)*(width/r.width),y:(e.clientY-r.top)*(height/r.height)};};
+  const block=e=>e.preventDefault();
   const start=e=>{e.preventDefault();if(!ok(e))return;ref.current.setPointerCapture(e.pointerId);dr.current=true;last.current=pos(e);};
   const move=e=>{e.preventDefault();if(!dr.current||!ok(e))return;const ctx=ref.current.getContext("2d"),p=pos(e);ctx.beginPath();ctx.moveTo(last.current.x,last.current.y);ctx.lineTo(p.x,p.y);if(mode==="erase"){ctx.globalCompositeOperation="destination-out";ctx.lineWidth=28;}else{ctx.globalCompositeOperation="source-over";ctx.strokeStyle="#1A2332";ctx.lineWidth=3;}ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();ctx.globalCompositeOperation="source-over";last.current=p;};
   const end=e=>{e.preventDefault();if(ok(e)){dr.current=false;last.current=null;}};
   return<div><div style={{display:"flex",gap:"8px",marginBottom:"10px"}}><button onClick={()=>setMode("draw")} style={{...S.tb(mode==="draw"),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>✏️ Draw</button><button onClick={()=>setMode("erase")} style={{...S.tb(mode==="erase"),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>🧹 Erase</button></div>
-  <canvas ref={ref} width={width} height={height} style={{width:"100%",maxWidth:width+"px",aspectRatio:`${width}/${height}`,borderRadius:"12px",border:`2px solid ${mode==="erase"?"#FF9800":"#E0E7ED"}`,background:"#fff",display:"block",margin:"0 auto",touchAction:"none"}} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end}/>
+  <canvas ref={ref} width={width} height={height} style={{width:"100%",maxWidth:width+"px",aspectRatio:`${width}/${height}`,borderRadius:"12px",border:`2px solid ${mode==="erase"?"#FF9800":"#E0E7ED"}`,background:"#fff",display:"block",margin:"0 auto",touchAction:"none"}} onTouchStart={block} onTouchMove={block} onTouchEnd={block} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end}/>
   <button onClick={()=>ref.current.getContext("2d").clearRect(0,0,width,height)} style={{...S.bs,width:"100%",marginTop:"10px",padding:"10px",minHeight:"44px",fontSize:"14px"}}>Clear All</button></div>;
 }
 
@@ -68,7 +69,7 @@ function LineBisection({onScore,pencilOnly=true}){
   const tap=(i,e)=>{if(pencilOnly&&e.pointerType&&e.pointerType!=="pen"&&e.pointerType!=="mouse")return;const r=refs[i].current.getBoundingClientRect(),pct=(e.clientX-r.left)/r.width;const n=[...taps];n[i]=pct;setTaps(n);
     if(n.filter(t=>t!==null).length===3){const dv=n.map(t=>Math.abs(t-0.5)),mx=Math.max(...dv),same=n.every(t=>t>0.5)||n.every(t=>t<0.5),avg=dv.reduce((a,b)=>a+b,0)/3;let s=2;if(mx>0.15||(same&&avg>0.08))s=0;else if(mx>0.08)s=1;onScore(s);}};
   return<div>{LENS.map((len,i)=><div key={i} style={{marginBottom:"20px"}}><div style={{fontSize:"13px",color:"#5A6B7D",marginBottom:"6px"}}>Line {i+1}</div>
-    <div ref={refs[i]} style={{position:"relative",height:"56px",background:"#F8FAFB",borderRadius:"8px",border:"1px solid #E0E7ED",cursor:"crosshair",touchAction:"none"}} onPointerDown={e=>{e.preventDefault();tap(i,e);}}>
+    <div ref={refs[i]} style={{position:"relative",height:"56px",background:"#F8FAFB",borderRadius:"8px",border:"1px solid #E0E7ED",cursor:"crosshair",touchAction:"none"}} onTouchStart={e=>e.preventDefault()} onTouchMove={e=>e.preventDefault()} onTouchEnd={e=>e.preventDefault()} onPointerDown={e=>{e.preventDefault();tap(i,e);}}>
       <div style={{position:"absolute",top:"50%",left:`${(100-len)/2}%`,width:`${len}%`,height:"3px",background:"#1A2332",transform:"translateY(-50%)"}}/>
       {taps[i]!==null&&<div style={{position:"absolute",top:"50%",left:`${taps[i]*100}%`,transform:"translate(-50%,-50%)",width:"22px",height:"22px",borderRadius:"50%",background:"#E53935",border:"3px solid #fff",boxShadow:"0 1px 4px rgba(0,0,0,.2)"}}/>}
     </div></div>)}

@@ -29,7 +29,7 @@ const{useState,useRef,useCallback,useEffect}=React;
 const P="#6B4C93";
 const S={
   hdr:{background:P,color:"#fff",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 8px rgba(107,76,147,0.15)",position:"sticky",top:0,zIndex:10},
-  main:{flex:1,maxWidth:"720px",width:"100%",margin:"0 auto",padding:"24px"},
+  main:{maxWidth:"720px",width:"100%",margin:"0 auto",padding:"24px"},
   card:{background:"#fff",borderRadius:"16px",padding:"28px",boxShadow:"0 1px 4px rgba(0,0,0,.06)",marginBottom:"16px"},
   lbl:{fontSize:"12px",fontWeight:700,textTransform:"uppercase",letterSpacing:"1.5px",color:P,marginBottom:"8px"},
   ttl:{fontSize:"26px",fontWeight:700,letterSpacing:"-0.5px",marginBottom:"8px"},
@@ -55,9 +55,9 @@ function DrawCanvas({width=360,height=360,pencilOnly=true}){
   const ref=useRef(null),dr=useRef(false),last=useRef(null),[mode,setMode]=useState("draw");
   const ok=e=>!pencilOnly||e.pointerType==="pen"||e.pointerType==="mouse";
   const pos=e=>{const r=ref.current.getBoundingClientRect();return{x:(e.clientX-r.left)*(width/r.width),y:(e.clientY-r.top)*(height/r.height)};};
-  const start=e=>{if(!ok(e))return;e.preventDefault();ref.current.setPointerCapture(e.pointerId);dr.current=true;last.current=pos(e);};
-  const move=e=>{if(!dr.current||!ok(e))return;e.preventDefault();const ctx=ref.current.getContext("2d"),p=pos(e);ctx.beginPath();ctx.moveTo(last.current.x,last.current.y);ctx.lineTo(p.x,p.y);if(mode==="erase"){ctx.globalCompositeOperation="destination-out";ctx.lineWidth=28;}else{ctx.globalCompositeOperation="source-over";ctx.strokeStyle="#1A2332";ctx.lineWidth=3;}ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();ctx.globalCompositeOperation="source-over";last.current=p;};
-  const end=e=>{if(ok(e)){dr.current=false;last.current=null;}};
+  const start=e=>{e.preventDefault();if(!ok(e))return;ref.current.setPointerCapture(e.pointerId);dr.current=true;last.current=pos(e);};
+  const move=e=>{e.preventDefault();if(!dr.current||!ok(e))return;const ctx=ref.current.getContext("2d"),p=pos(e);ctx.beginPath();ctx.moveTo(last.current.x,last.current.y);ctx.lineTo(p.x,p.y);if(mode==="erase"){ctx.globalCompositeOperation="destination-out";ctx.lineWidth=28;}else{ctx.globalCompositeOperation="source-over";ctx.strokeStyle="#1A2332";ctx.lineWidth=3;}ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke();ctx.globalCompositeOperation="source-over";last.current=p;};
+  const end=e=>{e.preventDefault();if(ok(e)){dr.current=false;last.current=null;}};
   return<div><div style={{display:"flex",gap:"8px",marginBottom:"10px"}}><button onClick={()=>setMode("draw")} style={{...S.tb(mode==="draw"),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>✏️ Draw</button><button onClick={()=>setMode("erase")} style={{...S.tb(mode==="erase"),flex:1,minHeight:"44px",padding:"10px",fontSize:"14px"}}>🧹 Erase</button></div>
   <canvas ref={ref} width={width} height={height} style={{width:"100%",maxWidth:width+"px",aspectRatio:`${width}/${height}`,borderRadius:"12px",border:`2px solid ${mode==="erase"?"#FF9800":"#E0E7ED"}`,background:"#fff",display:"block",margin:"0 auto",touchAction:"none"}} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end}/>
   <button onClick={()=>ref.current.getContext("2d").clearRect(0,0,width,height)} style={{...S.bs,width:"100%",marginTop:"10px",padding:"10px",minHeight:"44px",fontSize:"14px"}}>Clear All</button></div>;
